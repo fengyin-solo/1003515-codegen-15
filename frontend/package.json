@@ -8,6 +8,7 @@
     "dev": "vite",
     "build": "vue-tsc --noEmit && vite build",
     "preview": "vite preview",
+    "test": "vitest run",
     "typecheck": "vue-tsc --noEmit"
   },
   "dependencies": {
@@ -16,10 +17,12 @@
     "vue-router": "^4.3.0"
   },
   "devDependencies": {
+    "@rollup/rollup-linux-arm64-gnu": "^4.64.0",
     "@types/node": "^20.11.30",
     "@vitejs/plugin-vue": "^5.0.4",
     "typescript": "^5.4.3",
     "vite": "^5.2.6",
+    "vitest": "^4.1.11",
     "vue-tsc": "^2.0.7"
   }
 }

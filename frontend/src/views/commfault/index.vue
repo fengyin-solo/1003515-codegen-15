@@ -1,15 +1,12 @@
 <template>
-  <section class="page" data-module="communication">
+  <section class="page" data-module="commfault">
     <header class="page-head">
       <div>
-        <h2>通讯系统管理</h2>
-        <p class="page-desc">
-          单向处置流程：通讯正常 → 信号弱 → 通讯中断 → 待更换，更换完成后才能确认恢复；已停用为终态，不参与研判。
-        </p>
+        <h2>通讯故障单管理</h2>
+        <p class="page-desc">通讯设备确认中断后自动生成的故障工单，与站房巡检待办同步生成，设备确认恢复后自动办结。</p>
       </div>
       <div class="page-actions">
-        <button class="btn primary" type="button" @click="runAuto">通讯质量自动研判</button>
-        <button class="btn" type="button" @click="exportRows">导出通讯系统清单</button>
+        <button class="btn" type="button" @click="exportRows">导出通讯故障单清单</button>
       </div>
     </header>
 
@@ -60,15 +57,14 @@
           </td>
         </tr>
         <tr v-if="!rows.length">
-          <td :colspan="columns.length + 2" class="empty-state">暂无通讯系统数据</td>
+          <td :colspan="columns.length + 2" class="empty-state">暂无通讯故障单，通讯设备确认中断后自动生成</td>
         </tr>
       </tbody>
     </table>
 
     <footer class="page-foot">
-      <span>共 {{ total }} 条通讯系统记录</span>
+      <span>共 {{ total }} 条通讯故障单记录</span>
       <span v-if="errorMessage" class="error-text">{{ errorMessage }}</span>
-      <span v-else-if="noticeMessage" class="notice-text">{{ noticeMessage }}</span>
     </footer>
   </section>
 </template>
@@ -77,29 +73,28 @@
 import { computed, onMounted, ref } from 'vue'
 
 import {
-  listCommunicationEntries,
-  runAutoEvaluation,
-  runCommunicationAction,
-} from '@/api/communication-service'
-import { downloadEntries, moduleMeta } from '@/api/local-service'
+  downloadEntries,
+  listEntries,
+  moduleMeta,
+  runAction as applyAction,
+} from '@/api/local-service'
 import type { EntryRow } from '@/data/types'
 
-const meta = moduleMeta('communication')
-const columns = ["设备编号", "设备类型", "所属站点", "通讯协议", "安装日期", "信号强度", "最近通讯时刻", "维护人员", "设备状态"]
-const actions = ["登记故障", "申请更换", "确认恢复", "停用设备"]
-const statuses = ["通讯正常", "信号弱", "通讯中断", "待更换", "已停用"]
+const meta = moduleMeta('commfault')
+const columns = ["工单编号", "设备编号", "所属站点", "故障类型", "登记时刻", "处置人", "办结时刻", "工单状态"]
+const actions = ["开始处置", "确认办结"]
+const statuses = ["待处置", "处置中", "已恢复"]
 
 const rows = ref<EntryRow[]>([])
 const total = ref(0)
 const errorMessage = ref('')
-const noticeMessage = ref('')
 const filters = ref<Record<string, string>>({})
 const filterFields = columns.slice(0, 3)
 
 const stats = computed(() => [
-  { label: '设备总数', value: rows.value.length },
-  { label: '通讯正常数', value: rows.value.filter((row) => row.status === '通讯正常').length },
-  { label: '中断设备数', value: rows.value.filter((row) => row.status === '通讯中断').length },
+  { label: '待处置工单', value: rows.value.filter((row) => row.status === '待处置').length },
+  { label: '处置中工单', value: rows.value.filter((row) => row.status === '处置中').length },
+  { label: '已恢复工单', value: rows.value.filter((row) => row.status === '已恢复').length },
 ])
 const statusSummary = computed(() =>
   statuses.map((status: string) => ({
@@ -119,31 +114,22 @@ function exportRows() {
 
 function runAction(action: string, row: EntryRow) {
   errorMessage.value = ''
-  noticeMessage.value = ''
-  const result = runCommunicationAction(Number(row.id), action)
+  const result = applyAction(meta.key, Number(row.id), action)
   if (!result.ok) {
     errorMessage.value = result.message
     return
   }
-  noticeMessage.value = [result.message, ...result.events].join('；')
-  reload()
-}
-
-function runAuto() {
-  errorMessage.value = ''
-  noticeMessage.value = ''
-  const result = runAutoEvaluation()
-  noticeMessage.value = [result.message, ...result.events].join('；')
   reload()
 }
 
 function reload() {
+  errorMessage.value = ''
   try {
-    const payload = listCommunicationEntries(filters.value)
+    const payload = listEntries(meta.key, filters.value)
     rows.value = payload.items
     total.value = payload.total
   } catch (error) {
-    errorMessage.value = error instanceof Error ? error.message : '通讯系统列表读取失败'
+    errorMessage.value = error instanceof Error ? error.message : '通讯故障单列表读取失败'
   }
 }
 

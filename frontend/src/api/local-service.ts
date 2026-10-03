@@ -1,3 +1,4 @@
+import { runCommunicationAction } from '@/api/communication-service'
 import { MODULE_BY_KEY } from '@/data/modules'
 import { allRows, listRows, resetRows, saveRows } from '@/data/local-store'
 import type { ActionResult, EntryRow, ModuleMeta, OverviewResult, PageResult } from '@/data/types'
@@ -29,6 +30,10 @@ export function listEntries(key: string, filters: Record<string, string> = {}): 
 }
 
 export function runAction(key: string, id: number, action: string): ActionResult {
+  // 通讯设备走单向处置流程域服务：逐级流转、跳级拒绝、确认中断同步建单，不能走通用流转
+  if (key === 'communication') {
+    return runCommunicationAction(id, action)
+  }
   const meta = moduleMeta(key)
   const target = meta.actionTargets[action]
   if (!target) {
