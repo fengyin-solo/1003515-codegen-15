@@ -1,13 +1,13 @@
 <template>
-  <section class="page" data-module="communication">
+  <section class="page" data-module="commfault">
     <header class="page-head">
       <div>
-        <h2>通讯系统管理</h2>
-        <p class="page-desc">维护通讯设备，围绕设备编号、设备类型、所属站点、通讯协议做登记、筛选与状态流转。处置流程单向推进：通讯正常 → 信号弱 → 通讯中断 → 待更换，更换完成后经人工抢修确认才能恢复，跳级操作一律拒绝。</p>
+        <h2>通讯故障单管理</h2>
+        <p class="page-desc">维护通讯故障单，围绕工单编号、设备编号、所属站点、故障类型做登记、筛选与状态流转。通讯设备确认中断时自动生成故障单，同一设备未办结前不重复建单。</p>
       </div>
       <div class="page-actions">
-        <button class="btn primary" type="button" @click="openCreate">登记通讯设备</button>
-        <button class="btn" type="button" @click="exportRows">导出通讯系统清单</button>
+        <button class="btn primary" type="button" @click="openCreate">登记通讯故障单</button>
+        <button class="btn" type="button" @click="exportRows">导出通讯故障单清单</button>
       </div>
     </header>
 
@@ -58,14 +58,13 @@
           </td>
         </tr>
         <tr v-if="!rows.length">
-          <td :colspan="columns.length + 2" class="empty-state">暂无通讯系统数据，可先登记通讯设备</td>
+          <td :colspan="columns.length + 2" class="empty-state">暂无通讯故障单，通讯设备确认中断后会自动生成</td>
         </tr>
       </tbody>
     </table>
 
     <footer class="page-foot">
-      <span>共 {{ total }} 条通讯系统记录</span>
-      <span v-if="noticeMessage" class="notice-text">{{ noticeMessage }}</span>
+      <span>共 {{ total }} 条通讯故障单记录</span>
       <span v-if="errorMessage" class="error-text">{{ errorMessage }}</span>
     </footer>
   </section>
@@ -82,16 +81,15 @@ import {
 } from '@/api/local-service'
 import type { EntryRow } from '@/data/types'
 
-const meta = moduleMeta('communication')
-const columns = ["设备编号", "设备类型", "所属站点", "通讯协议", "信号强度", "安装日期", "最近通讯时刻", "维护人员", "设备状态", "质量结论"]
-const actions = ["登记故障", "申请更换", "人工抢修", "自动回放", "停用设备"]
-const statuses = ["通讯正常", "信号弱", "通讯中断", "待更换", "已停用"]
-const stats = [{"label": "设备总数", "value": 0}, {"label": "通讯正常数", "value": 0}, {"label": "中断设备数", "value": 0}]
+const meta = moduleMeta('commfault')
+const columns = ["工单编号", "设备编号", "所属站点", "故障类型", "登记时间", "处置人", "工单状态"]
+const actions = ["开始处理", "确认恢复", "关闭工单"]
+const statuses = ["待处理", "处理中", "已恢复", "已关闭"]
+const stats = [{"label": "工单总数", "value": 0}, {"label": "待处理工单", "value": 0}, {"label": "处理中工单", "value": 0}]
 
 const rows = ref<EntryRow[]>([])
 const total = ref(0)
 const errorMessage = ref('')
-const noticeMessage = ref('')
 const filters = ref<Record<string, string>>({})
 const filterFields = columns.slice(0, 3)
 const statusSummary = computed(() =>
@@ -111,18 +109,16 @@ function exportRows() {
 }
 
 function openCreate() {
-  errorMessage.value = '通讯设备登记入口尚未接入审批流'
+  errorMessage.value = '通讯故障单由通讯设备确认中断时自动生成，无需手工登记'
 }
 
 function runAction(action: string, row: EntryRow) {
   errorMessage.value = ''
-  noticeMessage.value = ''
   const result = applyAction(meta.key, Number(row.id), action)
   if (!result.ok) {
     errorMessage.value = result.message
     return
   }
-  noticeMessage.value = result.message
   reload()
 }
 
@@ -133,7 +129,7 @@ function reload() {
     rows.value = payload.items
     total.value = payload.total
   } catch (error) {
-    errorMessage.value = error instanceof Error ? error.message : '通讯系统列表读取失败'
+    errorMessage.value = error instanceof Error ? error.message : '通讯故障单列表读取失败'
   }
 }
 

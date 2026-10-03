@@ -1,5 +1,6 @@
 import { MODULE_BY_KEY } from '@/data/modules'
 import { allRows, listRows, resetRows, saveRows } from '@/data/local-store'
+import { applyCommunicationAction, backfillCommRows, COMM_KEY } from '@/api/communication-flow'
 import type { ActionResult, EntryRow, ModuleMeta, OverviewResult, PageResult } from '@/data/types'
 
 // 会写进数据的「往回走」动作：命中就把这条记录标成异常态，看板上能一眼看出来。
@@ -24,11 +25,19 @@ export function filterRows(rows: EntryRow[], filters: Record<string, string>): E
 }
 
 export function listEntries(key: string, filters: Record<string, string> = {}): PageResult {
+  if (key === COMM_KEY) {
+    // 历史设备缺少最近通讯时刻时先按安装日期回填，再进列表。
+    backfillCommRows()
+  }
   const matched = filterRows(listRows(key), filters)
   return { items: matched, total: matched.length, page: 1, size: matched.length }
 }
 
 export function runAction(key: string, id: number, action: string): ActionResult {
+  // 通讯设备走单向处置状态机：跳级、回退、停用判正常都在里面拒绝。
+  if (key === COMM_KEY) {
+    return applyCommunicationAction(id, action)
+  }
   const meta = moduleMeta(key)
   const target = meta.actionTargets[action]
   if (!target) {
@@ -62,6 +71,9 @@ export function resetModule(key: string): PageResult {
 }
 
 export function exportEntries(key: string): { filename: string; content: string } {
+  if (key === COMM_KEY) {
+    backfillCommRows()
+  }
   const meta = moduleMeta(key)
   const header = ['编号', ...meta.fields, '当前状态']
   const lines = [header.join(',')]
